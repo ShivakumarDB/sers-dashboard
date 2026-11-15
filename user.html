@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SERS &mdash; User</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body data-page="user">
+
+<header class="topbar">
+  <div class="brand">
+    <a href="index.html" class="brand-mark-link" title="Back to home"><span class="brand-mark">&#9678;</span></a>
+    <div class="brand-text">
+      <h1>SERS<span>USER</span></h1>
+      <p class="brand-sub">Smart Emergency Response System &middot; report an SOS, find nearby help</p>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <div class="conn" id="conn">
+      <span class="conn-dot" id="conn-dot"></span>
+      <span id="conn-label">LIVE</span>
+    </div>
+    <div id="account-box" class="account-box"></div>
+  </div>
+</header>
+
+<!-- ===================== AUTH GATE (shown until logged in) ===================== -->
+<div class="auth-wrap" id="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-auth="login">Log in</button>
+      <button class="auth-tab" data-auth="signup">Create account</button>
+    </div>
+
+    <form class="admin-form active" id="form-login">
+      <div class="field">
+        <label for="login-phone">Phone number</label>
+        <input type="text" id="login-phone" placeholder="9xxxxxxxxx" required>
+      </div>
+      <div class="field">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" required>
+      </div>
+      <button type="submit" class="submit-btn" style="background:var(--teal);">Log in</button>
+      <div class="admin-msg" id="msg-login"></div>
+    </form>
+
+    <form class="admin-form" id="form-signup">
+      <div class="field">
+        <label for="signup-name">Full name</label>
+        <input type="text" id="signup-name" required>
+      </div>
+      <div class="field">
+        <label for="signup-phone">Phone number</label>
+        <input type="text" id="signup-phone" placeholder="9xxxxxxxxx" required>
+      </div>
+      <div class="field">
+        <label for="signup-password">Password</label>
+        <input type="password" id="signup-password" placeholder="at least 4 characters" required>
+      </div>
+      <button type="submit" class="submit-btn" style="background:var(--blue);">Create account</button>
+      <div class="admin-msg" id="msg-signup"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== MAIN APP (shown once logged in) ===================== -->
+<main class="grid" id="app-main" style="display:none;">
+
+  <section class="panel map-panel">
+    <div class="panel-head">
+      <h2>Live Map</h2>
+      <button id="sos-btn" class="sim-btn" title="Send an SOS from your current location, or pick a point on the map">
+        &#128680; Send SOS
+      </button>
+    </div>
+    <div id="map"></div>
+  </section>
+
+  <aside class="panel feed-panel">
+    <div class="side-tabs">
+      <button class="side-tab active" data-side-tab="find">Find Help</button>
+      <button class="side-tab" data-side-tab="mine">My Alerts</button>
+    </div>
+
+    <!-- ---- Find nearby help ---- -->
+    <div class="side-panel active" id="side-find">
+      <p class="hint-text">Enter your coordinates or a place name and we'll show you the nearest hospital, police station, and an available ambulance.</p>
+
+      <form id="form-lookup" class="admin-form active">
+        <div class="field">
+          <label for="lookup-place">Place name</label>
+          <input type="text" id="lookup-place" placeholder="e.g. Padubidri, or a landmark near you">
+        </div>
+        <p class="or-sep">&mdash; or &mdash;</p>
+        <div class="pick-row">
+          <div class="field"><label>Latitude</label><input type="text" id="lookup-lat" placeholder="13.21"></div>
+          <div class="field"><label>Longitude</label><input type="text" id="lookup-lon" placeholder="74.75"></div>
+          <button type="button" class="pick-btn" data-pick="user">Pick on map</button>
+        </div>
+        <button type="button" class="pick-btn" id="lookup-geolocate" style="align-self:stretch;">&#128205; Use my current location</button>
+        <button type="submit" class="submit-btn" style="background:var(--teal);">Find nearest help</button>
+        <div class="admin-msg" id="msg-lookup"></div>
+      </form>
+
+      <div id="lookup-results" class="lookup-results"></div>
+    </div>
+
+    <!-- ---- My alerts ---- -->
+    <div class="side-panel" id="side-mine">
+      <div id="my-alert-list" class="alert-list">
+        <p class="empty-state">No alerts from your account yet.</p>
+      </div>
+    </div>
+
+  </aside>
+
+</main>
+
+<!-- SOS location modal (pick current location / map click) -->
+<div class="sos-modal-overlay" id="sos-modal-overlay"></div>
+<div class="sos-modal" id="sos-modal">
+  <h2>Send SOS</h2>
+  <p class="hint-text">We'll send your location to the nearest hospital, police station, and dispatch an ambulance.</p>
+  <div class="pick-row">
+    <div class="field"><label>Latitude</label><input type="text" id="sos-lat" placeholder="13.21"></div>
+    <div class="field"><label>Longitude</label><input type="text" id="sos-lon" placeholder="74.75"></div>
+    <button type="button" class="pick-btn" data-pick="sos">Pick on map</button>
+  </div>
+  <button type="button" class="pick-btn" id="sos-geolocate" style="align-self:stretch;">&#128205; Use my current location</button>
+  <div class="field">
+    <label for="sos-message">Message (optional)</label>
+    <input type="text" id="sos-message" placeholder="SOS - immediate assistance required">
+  </div>
+  <div class="admin-msg" id="msg-sos"></div>
+  <div class="sos-modal-actions">
+    <button type="button" class="submit-btn" id="sos-cancel" style="background:var(--muted);">Cancel</button>
+    <button type="button" class="submit-btn" id="sos-confirm" style="background:var(--red);">Send SOS now</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>window.CARTO_API_KEY = "";</script>
+<script src="static/mock-api.js"></script>
+<script src="static/dashboard.js"></script>
+</body>
+</html>

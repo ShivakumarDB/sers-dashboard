@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SERS &mdash; Admin Analytics</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body data-page="admin">
+
+<header class="topbar">
+  <div class="brand">
+    <a href="admin.html" class="brand-mark-link" title="Back to admin dashboard"><span class="brand-mark">&#9678;</span></a>
+    <div class="brand-text">
+      <h1>SERS<span>ANALYTICS</span></h1>
+      <p class="brand-sub">Smart Emergency Response System &middot; live operations + trained model insights</p>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <div class="conn" id="conn">
+      <span class="conn-dot" id="conn-dot"></span>
+      <span id="conn-label">LIVE</span>
+    </div>
+    <a href="admin.html" class="admin-btn" style="text-decoration:none;display:inline-flex;align-items:center;">&#8592; Dashboard</a>
+    <button class="admin-btn" id="admin-logout-btn" style="display:none;background:linear-gradient(135deg,var(--muted),var(--muted));">Log out</button>
+  </div>
+</header>
+
+<!-- ===================== PASSCODE GATE ===================== -->
+<div class="auth-wrap" id="admin-auth-wrap">
+  <div class="auth-card">
+    <h2 style="margin:0 0 4px;font-family:var(--font-display);">Admin sign-in</h2>
+    <p class="hint-text">Enter the admin passcode to view analytics.</p>
+    <form class="admin-form active" id="form-admin-login">
+      <div class="field">
+        <label for="admin-passcode">Passcode</label>
+        <input type="password" id="admin-passcode" placeholder="Admin passcode" required>
+      </div>
+      <button type="submit" class="submit-btn" style="background:var(--purple);">Unlock analytics</button>
+      <div class="admin-msg" id="admin-login-msg"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== MAIN ANALYTICS APP ===================== -->
+<main class="analytics-page" id="app-main" style="display:none;">
+
+  <section class="panel analytics-panel">
+    <div class="panel-head">
+      <h2>Live Operations</h2>
+      <span class="hint-text" style="margin:0;">From today's alerts &mdash; updates every couple seconds</span>
+    </div>
+    <div class="analytics-body" id="analytics-body">
+      <div class="chart-block">
+        <h3>Resolved over time</h3>
+        <div id="chart-resolved-by-date" class="chart-svg-wrap"></div>
+      </div>
+      <div class="chart-block">
+        <h3>Alerts by hospital</h3>
+        <div id="chart-by-hospital" class="chart-svg-wrap"></div>
+      </div>
+      <div class="chart-block">
+        <h3>Alerts by place</h3>
+        <div id="chart-by-region" class="chart-svg-wrap"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel analytics-panel">
+    <div class="panel-head">
+      <h2>Trained Model Insights <span class="colab-pill">Colab &middot; 400 records</span></h2>
+      <span class="hint-text" style="margin:0;">What the AI review model learned from historical incidents</span>
+    </div>
+    <div class="analytics-body" id="training-analytics-body">
+
+      <div class="stat-row">
+        <div class="stat-card">
+          <span class="stat-label">Training rows</span>
+          <span class="stat-value" id="training-total-rows">&mdash;</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Overall satisfaction</span>
+          <span class="stat-value" id="training-overall-rate">&mdash;</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Model status</span>
+          <span class="stat-value" id="training-model-status">&mdash;</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Live predictions logged</span>
+          <span class="stat-value" id="training-live-logged">&mdash;</span>
+        </div>
+      </div>
+
+      <div class="chart-block">
+        <h3>Satisfaction rate by place</h3>
+        <p class="hint-text">Bar height is total incidents for that place; the inner bar is how many were satisfied.</p>
+        <div id="chart-satisfaction-by-place" class="chart-svg-wrap"></div>
+      </div>
+      <div class="chart-block">
+        <h3>Satisfaction &mdash; hospital assigned vs not</h3>
+        <div id="chart-satisfaction-by-hospital" class="chart-svg-wrap"></div>
+      </div>
+      <div class="chart-block">
+        <h3>Satisfaction &mdash; police assigned vs not</h3>
+        <div id="chart-satisfaction-by-police" class="chart-svg-wrap"></div>
+      </div>
+      <div class="chart-block">
+        <h3>Satisfaction &mdash; ambulance assigned vs not</h3>
+        <div id="chart-satisfaction-by-ambulance" class="chart-svg-wrap"></div>
+      </div>
+      <div class="chart-block">
+        <h3>What drives the AI review prediction</h3>
+        <p class="hint-text">Feature importance from the trained RandomForestClassifier.</p>
+        <div id="chart-feature-importance" class="fi-chart"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="panel analytics-panel">
+    <div class="panel-head">
+      <h2>Model Diagnostics <span class="colab-pill">Colab &middot; 400 records</span></h2>
+      <span class="hint-text" style="margin:0;">Evaluated on the training set itself &mdash; there's no separate held-out test file on disk</span>
+    </div>
+    <div class="analytics-body" id="training-diagnostics-body">
+
+      <div class="chart-block">
+        <h3>Accuracy, precision, recall, F1</h3>
+        <div class="diag-metric-row">
+          <div class="stat-card"><span class="stat-label">Accuracy</span><span class="stat-value" id="diag-accuracy">&mdash;</span></div>
+          <div class="stat-card"><span class="stat-label">Precision</span><span class="stat-value" id="diag-precision">&mdash;</span></div>
+          <div class="stat-card"><span class="stat-label">Recall</span><span class="stat-value" id="diag-recall">&mdash;</span></div>
+          <div class="stat-card"><span class="stat-label">F1</span><span class="stat-value" id="diag-f1">&mdash;</span></div>
+        </div>
+      </div>
+
+      <div class="chart-block">
+        <h3>Correlation heatmap</h3>
+        <p class="hint-text">How each numeric column moves with the others &mdash; red is positive, blue is negative, darker is stronger.</p>
+        <div id="chart-correlation-heatmap" class="chart-svg-wrap"></div>
+      </div>
+
+      <div class="chart-block">
+        <h3>Confusion matrix</h3>
+        <p class="hint-text">Rows are the true outcome, columns are what the model predicted.</p>
+        <div id="chart-confusion-matrix" class="chart-svg-wrap"></div>
+      </div>
+
+      <div class="chart-block">
+        <h3>ROC curve</h3>
+        <div id="chart-roc-curve" class="chart-svg-wrap"></div>
+      </div>
+
+      <div class="chart-block">
+        <h3>Class balance</h3>
+        <p class="hint-text">How many of the 400 training incidents were labeled satisfied vs not.</p>
+        <div id="chart-class-balance" class="chart-svg-wrap"></div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<script>window.CARTO_API_KEY = "";</script>
+<script src="static/mock-api.js"></script>
+<script src="static/dashboard.js"></script>
+</body>
+</html>

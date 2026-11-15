@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SERS &mdash; Admin</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body data-page="admin">
+
+<header class="topbar">
+  <div class="brand">
+    <a href="index.html" class="brand-mark-link" title="Back to home"><span class="brand-mark">&#9678;</span></a>
+    <div class="brand-text">
+      <h1>SERS<span>ADMIN</span></h1>
+      <p class="brand-sub">Smart Emergency Response System &middot; dispatch control panel</p>
+    </div>
+  </div>
+
+  <div class="ticker">
+    <div class="ticker-item pending">
+      <span class="ticker-label">Pending</span>
+      <span class="ticker-value" id="tk-pending">0</span>
+    </div>
+    <div class="ticker-item dispatched">
+      <span class="ticker-label">Dispatched</span>
+      <span class="ticker-value" id="tk-dispatched">0</span>
+    </div>
+    <div class="ticker-item resolved">
+      <span class="ticker-label">Resolved</span>
+      <span class="ticker-value" id="tk-resolved">0</span>
+    </div>
+    <div class="ticker-item amb">
+      <span class="ticker-label">Ambulances free</span>
+      <span class="ticker-value" id="tk-amb">0/0</span>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <div class="conn" id="conn">
+      <span class="conn-dot" id="conn-dot"></span>
+      <span id="conn-label">LIVE</span>
+    </div>
+    <button class="admin-btn analytics-btn" id="analytics-toggle-btn" style="display:none;" title="Opens the full analytics page in a new tab">&#128202; Analytics</button>
+    <button class="admin-btn" id="admin-logout-btn" style="display:none;background:linear-gradient(135deg,var(--muted),var(--muted));">Log out</button>
+  </div>
+</header>
+
+<!-- ===================== PASSCODE GATE ===================== -->
+<div class="auth-wrap" id="admin-auth-wrap">
+  <div class="auth-card">
+    <h2 style="margin:0 0 4px;font-family:var(--font-display);">Admin sign-in</h2>
+    <p class="hint-text">Enter the admin passcode to manage places, hospitals, police stations, ambulances, and dispatch.</p>
+    <form class="admin-form active" id="form-admin-login">
+      <div class="field">
+        <label for="admin-passcode">Passcode</label>
+        <input type="password" id="admin-passcode" placeholder="Admin passcode" required>
+      </div>
+      <button type="submit" class="submit-btn" style="background:var(--purple);">Unlock admin panel</button>
+      <div class="admin-msg" id="admin-login-msg"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== MAIN ADMIN APP ===================== -->
+<main class="grid" id="app-main" style="display:none;">
+
+  <section class="panel map-panel">
+    <div class="panel-head">
+      <h2>Live Map</h2>
+      <button id="sim-btn" class="sim-btn" title="Click, then click anywhere on the map to simulate an SOS press">
+        Simulate SOS
+      </button>
+    </div>
+    <div id="map"></div>
+    <p class="map-hint" id="map-hint">Markers: <span class="dot place"></span> Place &nbsp; <span class="dot hospital"></span> Hospital &nbsp; <span class="dot police"></span> Police &nbsp; <span class="dot amb"></span> Ambulance &nbsp; <span class="dot sos"></span> SOS</p>
+  </section>
+
+  <aside class="panel feed-panel">
+    <div class="admin-tabs" id="admin-tabs">
+      <button class="admin-tab active" data-tab="alerts">Alerts</button>
+      <button class="admin-tab manual-signal-tab" data-tab="manual-signal">&#128680; Manual Signal</button>
+      <button class="admin-tab" data-tab="place">+ Place</button>
+      <button class="admin-tab" data-tab="hospital">+ Hospital</button>
+      <button class="admin-tab" data-tab="police">+ Police</button>
+      <button class="admin-tab" data-tab="ambulance">+ Ambulance</button>
+      <button class="admin-tab" data-tab="users">Users</button>
+    </div>
+
+    <div class="admin-body">
+
+      <!-- Alert feed: active alerts (2 parts) over resolved history (1 part) -->
+      <div class="side-panel active alerts-split" id="tab-alerts">
+        <div class="alerts-block alerts-block-active">
+          <div class="feed-count-row">
+            <span class="feed-section-label">Active</span>
+            <span class="feed-count" id="feed-count">0 alerts</span>
+          </div>
+          <div id="alert-list-active" class="alert-list">
+            <p class="empty-state">No alerts yet. Waiting for an SOS signal from the field units&hellip;</p>
+          </div>
+        </div>
+        <div class="alerts-block alerts-block-history">
+          <div class="feed-count-row">
+            <span class="feed-section-label">History (resolved)</span>
+            <span class="feed-count" id="feed-count-history">0 resolved</span>
+          </div>
+          <div id="alert-list-history" class="alert-list">
+            <p class="empty-state">Resolved alerts will show up here.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual distress signal: admin types in raw coordinates and flags
+           them as a distress signal directly, without waiting for a device
+           or a user account to report it. Works anywhere across all 4
+           places — nearest hospital/police/ambulance are found the same
+           way as any other SOS, purely by distance from the point given. -->
+      <form class="admin-form" id="form-manual-signal">
+        <p class="hint-text">Manually enter a location to flag it as a distress signal. It's plotted red on the map immediately and the nearest hospital, police station, and ambulance are matched automatically &mdash; for Mangalore, Padubidri, Udupi, Moodbidri, or anywhere in between.</p>
+        <div class="pick-row">
+          <div class="field"><label>Latitude</label><input type="text" id="manual-lat" placeholder="13.34" required></div>
+          <div class="field"><label>Longitude</label><input type="text" id="manual-lon" placeholder="74.74" required></div>
+          <button type="button" class="pick-btn" data-pick="manual">Pick on map</button>
+        </div>
+        <div class="field">
+          <label for="manual-note">Note <span style="text-transform:none;">(optional)</span></label>
+          <input type="text" id="manual-note" placeholder="e.g. reported by phone call">
+        </div>
+        <button type="submit" class="submit-btn" style="background:var(--red);">&#128680; Report Distress Signal</button>
+        <div class="admin-msg" id="msg-manual-signal"></div>
+      </form>
+
+      <!-- Add place -->
+      <form class="admin-form" id="form-place">
+        <div class="field">
+          <label for="place-name">Place name</label>
+          <input type="text" id="place-name" placeholder="e.g. Kaup" required>
+        </div>
+        <div class="pick-row">
+          <div class="field"><label>Latitude</label><input type="text" id="place-lat" placeholder="13.21" required></div>
+          <div class="field"><label>Longitude</label><input type="text" id="place-lon" placeholder="74.75" required></div>
+          <button type="button" class="pick-btn" data-pick="place">Pick on map</button>
+        </div>
+        <div class="field">
+          <label for="place-token">Telegram bot token <span style="text-transform:none;">(optional now)</span></label>
+          <input type="text" id="place-token" placeholder="123456:ABC-DEF...">
+        </div>
+        <div class="field">
+          <label for="place-chat">Telegram chat ID <span style="text-transform:none;">(optional now)</span></label>
+          <input type="text" id="place-chat" placeholder="-1001234567890">
+        </div>
+        <button type="submit" class="submit-btn">Add place</button>
+        <div class="admin-msg" id="msg-place"></div>
+      </form>
+
+      <!-- Add hospital -->
+      <form class="admin-form" id="form-hospital">
+        <div class="field">
+          <label for="hospital-region">Place</label>
+          <select id="hospital-region" required></select>
+        </div>
+        <div class="field">
+          <label for="hospital-name">Hospital name</label>
+          <input type="text" id="hospital-name" required>
+        </div>
+        <div class="pick-row">
+          <div class="field"><label>Latitude</label><input type="text" id="hospital-lat" required></div>
+          <div class="field"><label>Longitude</label><input type="text" id="hospital-lon" required></div>
+          <button type="button" class="pick-btn" data-pick="hospital">Pick on map</button>
+        </div>
+        <div class="field">
+          <label for="hospital-phone">Phone</label>
+          <input type="text" id="hospital-phone" placeholder="08xx-xxxxxxx">
+        </div>
+        <button type="submit" class="submit-btn">Add hospital</button>
+        <div class="admin-msg" id="msg-hospital"></div>
+      </form>
+
+      <!-- Add police station -->
+      <form class="admin-form" id="form-police">
+        <div class="field">
+          <label for="police-region">Place</label>
+          <select id="police-region" required></select>
+        </div>
+        <div class="field">
+          <label for="police-name">Police station name</label>
+          <input type="text" id="police-name" required>
+        </div>
+        <div class="pick-row">
+          <div class="field"><label>Latitude</label><input type="text" id="police-lat" required></div>
+          <div class="field"><label>Longitude</label><input type="text" id="police-lon" required></div>
+          <button type="button" class="pick-btn" data-pick="police">Pick on map</button>
+        </div>
+        <div class="field">
+          <label for="police-phone">Phone</label>
+          <input type="text" id="police-phone" placeholder="08xx-xxxxxxx">
+        </div>
+        <button type="submit" class="submit-btn">Add police station</button>
+        <div class="admin-msg" id="msg-police"></div>
+      </form>
+
+      <!-- Add ambulance -->
+      <form class="admin-form" id="form-ambulance">
+        <div class="field">
+          <label for="ambulance-region">Place</label>
+          <select id="ambulance-region" required></select>
+        </div>
+        <div class="field">
+          <label for="ambulance-hospital">Home hospital</label>
+          <select id="ambulance-hospital" required></select>
+        </div>
+        <div class="field">
+          <label for="ambulance-code">Vehicle code</label>
+          <input type="text" id="ambulance-code" placeholder="KA-19-AB-1004" required>
+        </div>
+        <p class="hint-text">Starts stationed at the hospital you pick above &mdash; you can reposition it later if it carries its own GPS tracker.</p>
+        <button type="submit" class="submit-btn">Add ambulance</button>
+        <div class="admin-msg" id="msg-ambulance"></div>
+      </form>
+
+      <!-- Users -->
+      <div class="side-panel" id="tab-users">
+        <p class="hint-text">Everyone who has created an account on the user page, with the ID shown to them and how many SOS alerts they've raised.</p>
+        <div id="users-list" class="users-list">
+          <p class="empty-state">No registered users yet.</p>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+</main>
+
+<footer class="status-strip" id="region-strip"></footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>window.CARTO_API_KEY = "";</script>
+<script src="static/mock-api.js"></script>
+<script src="static/dashboard.js"></script>
+</body>
+</html>
